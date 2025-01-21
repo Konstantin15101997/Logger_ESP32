@@ -3,8 +3,8 @@ const char apn[]      = "internet.mts.ru"; //APN
 const char gprsUser[] = "mts"; // имя пользователя
 const char gprsPass[] = "mts"; // пароль
  
-unsigned long myChannelNumber = 1;
-const char * myWriteAPIKey = "JWULUMV8FTTZSW69";
+unsigned long myChannelNumber = 2;
+const char * myWriteAPIKey = "Q0337TE8T23TVSYI";
 
 int send;
 
@@ -44,15 +44,14 @@ int send;
   TinyGsm modem(SerialAT);
 #endif
 
-#include <Adafruit_Sensor.h>
-#include <Adafruit_AHTX0.h>
 #include <Adafruit_BMP280.h>
+#include <AHT10.h>
 
 // I2C для SIM800 
-TwoWire I2CPower = TwoWire(0);
+//TwoWire I2CPower = TwoWire(0);
 
-TwoWire I2CBMP = TwoWire(1);
 Adafruit_BMP280 bmp;
+AHT10 myAHT20(AHT10_ADDRESS_0X38, AHT20_SENSOR);
 
 // клиент TinyGSM для подключения к интернету
 TinyGsmClient client(modem);
@@ -60,7 +59,7 @@ TinyGsmClient client(modem);
 #define uS_TO_S_FACTOR 1000000UL   /* преобразуем микросекунды в секунды */
 #define TIME_TO_SLEEP  15        /* время спящего режима 1 час = 3600 секунд */
  
-#define IP5306_ADDR          0x75
+/*#define IP5306_ADDR          0x75
 #define IP5306_REG_SYS_CTL0  0x00
  
 bool setPowerBoostKeepOn(int en){
@@ -72,18 +71,18 @@ bool setPowerBoostKeepOn(int en){
     I2CPower.write(0x35); // 0x37 – значение по умолчанию
   }
   return I2CPower.endTransmission() == 0;
-}
+}*/
  
 void setup() {
   // запускаем монитор порта
   SerialMon.begin(115200);
 
   // Начинаем подключение I2C
-  I2CPower.begin(I2C_SDA, I2C_SCL, 400000);
-  I2CBMP.begin(I2C_SDA_2, I2C_SCL_2, 400000);
+  /*I2CPower.begin(I2C_SDA, I2C_SCL, 400000);
+
   // Не выключаем плату при питании от батареи
   bool isOk = setPowerBoostKeepOn(1);
-  SerialMon.println(String("IP5306 KeepOn ") + (isOk ? "OK" : "FAIL"));
+  SerialMon.println(String("IP5306 KeepOn ") + (isOk ? "OK" : "FAIL"));*/
  
   // Сброс, включение и контакты питания
   pinMode(MODEM_PWKEY, OUTPUT);
@@ -97,16 +96,23 @@ void setup() {
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
   delay(3000);
 
-  if (!bmp.begin(0x77, &I2CBMP)) {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+  while (myAHT20.begin() != true) {
+    Serial.println(F("AHT20 not connected or fail to load calibration coefficient")); //(F()) save string to flash & keeps dynamic memory free
+    delay(5000);
+  }
+  Serial.println(F("AHT20 OK"));
+  
+  if (!bmp.begin()) {
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
     while (1);
   }
 
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     // Режим работы
-                  Adafruit_BMP280::SAMPLING_X2,     // Точность изм. температуры
-                  Adafruit_BMP280::SAMPLING_X16,    // Точность изм. давления
-                  Adafruit_BMP280::FILTER_X16,      // Уровень фильтрации
-                  Adafruit_BMP280::STANDBY_MS_500); // Период просыпания, мСек
+  /* Default settings from datasheet. */
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
   // Перезапускаем модуль SIM800
   // Для пропуска вместо restart() напишите init(0
   SerialMon.println("Initializing modem...");
@@ -119,10 +125,6 @@ void setup() {
 }
  
 void loop() {
-  Serial.print(F("Pressure = "));
-  Serial.print(bmp.readPressure());  // Функция измерения атм. давления
-  Serial.println(" Pa");
-
   SerialMon.print("Connecting to APN: ");
   SerialMon.print(apn);
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
@@ -131,7 +133,13 @@ void loop() {
   }
   else {
     SerialMon.println(" OK");
-    int x = ThingSpeak.writeField(myChannelNumber, 1, 500, myWriteAPIKey);
+    ThingSpeak.writeField(myChannelNumber, 1, myAHT20.readTemperature(), myWriteAPIKey);
+    ThingSpeak.writeField(myChannelNumber, 2, myAHT20.readHumidity(), myWriteAPIKey);
+    ThingSpeak.writeField(myChannelNumber, 3, bmp.readPressure(), myWriteAPIKey);
+    
+    Serial.printf("Temperature: %.02f *C\n", myAHT20.readTemperature());
+    Serial.printf("Humidity: %.02f %RH\n", myAHT20.readHumidity());
+    Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());
     SerialMon.println("Данные отправлены");
   }
 
