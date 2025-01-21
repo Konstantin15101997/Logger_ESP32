@@ -35,12 +35,6 @@ int send;
 #include <Wire.h>
 #include <TinyGsmClient.h>
 #include <ThingSpeak.h>
-#include <Adafruit_AHTX0.h>
-#include <Adafruit_BMP280.h>
-
-
-Adafruit_AHTX0 aht;
-Adafruit_BMP280 bmp;
  
 #ifdef DUMP_AT_COMMANDS
   #include <StreamDebugger.h>
@@ -49,10 +43,17 @@ Adafruit_BMP280 bmp;
 #else
   TinyGsm modem(SerialAT);
 #endif
- 
+
+#include <Adafruit_Sensor.h>
+#include <Adafruit_AHTX0.h>
+#include <Adafruit_BMP280.h>
+
 // I2C для SIM800 
 TwoWire I2CPower = TwoWire(0);
- 
+
+TwoWire I2CBMP = TwoWire(1);
+Adafruit_BMP280 bmp;
+
 // клиент TinyGSM для подключения к интернету
 TinyGsmClient client(modem);
  
@@ -76,10 +77,10 @@ bool setPowerBoostKeepOn(int en){
 void setup() {
   // запускаем монитор порта
   SerialMon.begin(115200);
- 
+
   // Начинаем подключение I2C
   I2CPower.begin(I2C_SDA, I2C_SCL, 400000);
- 
+  I2CBMP.begin(I2C_SDA_2, I2C_SCL_2, 400000);
   // Не выключаем плату при питании от батареи
   bool isOk = setPowerBoostKeepOn(1);
   SerialMon.println(String("IP5306 KeepOn ") + (isOk ? "OK" : "FAIL"));
@@ -96,18 +97,11 @@ void setup() {
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
   delay(3000);
 
-  if (!aht.begin(&Wire, 0, 0x38)) {
-    Serial.println("Could not find AHT? Check wiring");
-    while (1) delay(10);
+  if (!bmp.begin(0x77, &I2CBMP)) {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    while (1);
   }
-  Serial.println("AHT10 or AHT20 found");
 
-  if(!bmp.begin()) 
-  { // Если датчик BMP280 не найден
-      Serial.println("BMP280 SENSOR ERROR"); // Выводим сообщение об ошибке
-      while(1); // Переходим в бесконечный цикл
-  }
-  
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     // Режим работы
                   Adafruit_BMP280::SAMPLING_X2,     // Точность изм. температуры
                   Adafruit_BMP280::SAMPLING_X16,    // Точность изм. давления
@@ -125,11 +119,6 @@ void setup() {
 }
  
 void loop() {
-  sensors_event_t humidity, temp;
-  aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-  Serial.print("Temperature: "); Serial.print(temp.temperature); Serial.println(" degrees C");
-  Serial.print("Humidity: "); Serial.print(humidity.relative_humidity); Serial.println("% rH");
-
   Serial.print(F("Pressure = "));
   Serial.print(bmp.readPressure());  // Функция измерения атм. давления
   Serial.println(" Pa");
