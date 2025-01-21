@@ -35,6 +35,12 @@ int send;
 #include <Wire.h>
 #include <TinyGsmClient.h>
 #include <ThingSpeak.h>
+#include <Adafruit_AHTX0.h>
+#include <Adafruit_BMP280.h>
+
+
+Adafruit_AHTX0 aht;
+Adafruit_BMP280 bmp;
  
 #ifdef DUMP_AT_COMMANDS
   #include <StreamDebugger.h>
@@ -89,7 +95,24 @@ void setup() {
   // Устанавливаем скорость передачи данных модуля GSM и контакты UART.
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
   delay(3000);
- 
+
+  if (!aht.begin(&Wire, 0, 0x38)) {
+    Serial.println("Could not find AHT? Check wiring");
+    while (1) delay(10);
+  }
+  Serial.println("AHT10 or AHT20 found");
+
+  if(!bmp.begin()) 
+  { // Если датчик BMP280 не найден
+      Serial.println("BMP280 SENSOR ERROR"); // Выводим сообщение об ошибке
+      while(1); // Переходим в бесконечный цикл
+  }
+  
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     // Режим работы
+                  Adafruit_BMP280::SAMPLING_X2,     // Точность изм. температуры
+                  Adafruit_BMP280::SAMPLING_X16,    // Точность изм. давления
+                  Adafruit_BMP280::FILTER_X16,      // Уровень фильтрации
+                  Adafruit_BMP280::STANDBY_MS_500); // Период просыпания, мСек
   // Перезапускаем модуль SIM800
   // Для пропуска вместо restart() напишите init(0
   SerialMon.println("Initializing modem...");
@@ -102,6 +125,15 @@ void setup() {
 }
  
 void loop() {
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+  Serial.print("Temperature: "); Serial.print(temp.temperature); Serial.println(" degrees C");
+  Serial.print("Humidity: "); Serial.print(humidity.relative_humidity); Serial.println("% rH");
+
+  Serial.print(F("Pressure = "));
+  Serial.print(bmp.readPressure());  // Функция измерения атм. давления
+  Serial.println(" Pa");
+
   SerialMon.print("Connecting to APN: ");
   SerialMon.print(apn);
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
@@ -113,6 +145,8 @@ void loop() {
     int x = ThingSpeak.writeField(myChannelNumber, 1, 500, myWriteAPIKey);
     SerialMon.println("Данные отправлены");
   }
+
+  
   // Переходим в спящий режим
   esp_deep_sleep_start();
 }
