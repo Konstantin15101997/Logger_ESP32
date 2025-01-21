@@ -133,12 +133,11 @@ void loop() {
   }
   else {
     SerialMon.println(" OK");
-    ThingSpeak.writeField(myChannelNumber, 1, myAHT20.readTemperature(), myWriteAPIKey);
-    ThingSpeak.writeField(myChannelNumber, 2, myAHT20.readHumidity(), myWriteAPIKey);
-    ThingSpeak.writeField(myChannelNumber, 3, bmp.readPressure(), myWriteAPIKey);
-    
+    int x = ThingSpeak.writeField(myChannelNumber, 1, myAHT20.readTemperature(), myWriteAPIKey);
     Serial.printf("Temperature: %.02f *C\n", myAHT20.readTemperature());
+    int y = ThingSpeak.writeField(myChannelNumber, 2, myAHT20.readHumidity(), myWriteAPIKey);
     Serial.printf("Humidity: %.02f %RH\n", myAHT20.readHumidity());
+    int z = ThingSpeak.writeField(myChannelNumber, 3, bmp.readPressure(), myWriteAPIKey);
     Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());
     SerialMon.println("Данные отправлены");
   }
