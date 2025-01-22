@@ -152,6 +152,7 @@ void loop() {
  
   pressure=bmp.readPressure();
   Voltage = ina219.getBusVoltage_V();
+
   //Current = ina219.getCurrent_mA();   
    /* Serial.printf("Temperature: %.02f *C\n", myAHT20.readTemperature());
 
@@ -171,9 +172,9 @@ void loop() {
     ThingSpeak.setField(1, temperature);
     humidity = myAHT20.readHumidity();
     ThingSpeak.setField(2, humidity);
+    delay(1000);
     ThingSpeak.setField(3, pressure);
     ThingSpeak.setField(4, Voltage);
-    ThingSpeak.setField(5, Current);
   }
   int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
     /*int x = ThingSpeak.writeField(myChannelNumber, 1, myAHT20.readTemperature(), myWriteAPIKey);
@@ -181,9 +182,9 @@ void loop() {
     int y = ThingSpeak.writeField(myChannelNumber, 2, myAHT20.readHumidity(), myWriteAPIKey);
     Serial.printf("Humidity: %.02f %RH\n", myAHT20.readHumidity());
     int z = ThingSpeak.writeField(myChannelNumber, 3, bmp.readPressure(), myWriteAPIKey);
-    Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());*/
-  SerialMon.println("Данные отправлены");
-  
+    Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());
+    SerialMon.println("Данные отправлены");*/
+  delay(5000);
   // Переходим в спящий режим
   esp_deep_sleep_start();
 }
