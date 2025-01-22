@@ -46,18 +46,25 @@ int send;
 
 #include <Adafruit_BMP280.h>
 #include <AHT10.h>
-
+#include <Adafruit_INA219.h>
 // I2C для SIM800 
 //TwoWire I2CPower = TwoWire(0);
 
+Adafruit_INA219 ina219; 
 Adafruit_BMP280 bmp;
 AHT10 myAHT20(AHT10_ADDRESS_0X38, AHT20_SENSOR);
+
+float temperature;
+float humidity;
+float pressure;
+float Voltage;
+float Current; 
 
 // клиент TinyGSM для подключения к интернету
 TinyGsmClient client(modem);
  
 #define uS_TO_S_FACTOR 1000000UL   /* преобразуем микросекунды в секунды */
-#define TIME_TO_SLEEP  15       /* время спящего режима 1 час = 3600 секунд */
+#define TIME_TO_SLEEP  60       /* время спящего режима 1 час = 3600 секунд */
  
 /*#define IP5306_ADDR          0x75
 #define IP5306_REG_SYS_CTL0  0x00
@@ -94,19 +101,35 @@ void setup() {
  
   // Устанавливаем скорость передачи данных модуля GSM и контакты UART.
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
-  delay(3000);
+  delay(2000);
+
+  while (ina219.begin() != true) {       
+    Voltage=0;
+    Current=0;
+    Serial.println("INA219 ERROR");
+    delay(3000);
+  }
+  
+  Serial.println(F("INA219 OK"));
 
   while (myAHT20.begin() != true) {
     Serial.println(F("AHT20 not connected or fail to load calibration coefficient")); //(F()) save string to flash & keeps dynamic memory free
-    delay(5000);
-  }
-  Serial.println(F("AHT20 OK"));
-  
-  if (!bmp.begin()) {
-    Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
-    while (1);
+    temperature=0;
+    humidity=0;
+    delay(3000);
   }
 
+  Serial.println(F("AHT20 OK"));
+  
+  while (bmp.begin() != true) {
+    pressure=0;
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
+    delay(3000);
+  }
+
+  Serial.println(F("BMP280 OK"));
+  ina219.setCalibration_16V_400mA ();
+  
   /* Default settings from datasheet. */
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
@@ -116,8 +139,9 @@ void setup() {
   // Перезапускаем модуль SIM800
   // Для пропуска вместо restart() напишите init(0
   SerialMon.println("Initializing modem...");
-  modem.restart();
- 
+  //modem.restart();
+  modem.init();
+
   ThingSpeak.begin(client);
   // Выставляем пробуждение по таймеру  
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
@@ -125,10 +149,10 @@ void setup() {
 }
  
 void loop() {
-  float temperature;
-  float humidity;
-  float pressure=bmp.readPressure();
-      
+ 
+  pressure=bmp.readPressure();
+  Voltage = ina219.getBusVoltage_V();
+  //Current = ina219.getCurrent_mA();   
    /* Serial.printf("Temperature: %.02f *C\n", myAHT20.readTemperature());
 
     Serial.printf("Humidity: %.02f %RH\n", myAHT20.readHumidity());
@@ -148,6 +172,8 @@ void loop() {
     humidity = myAHT20.readHumidity();
     ThingSpeak.setField(2, humidity);
     ThingSpeak.setField(3, pressure);
+    ThingSpeak.setField(4, Voltage);
+    ThingSpeak.setField(5, Current);
   }
   int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
     /*int x = ThingSpeak.writeField(myChannelNumber, 1, myAHT20.readTemperature(), myWriteAPIKey);
