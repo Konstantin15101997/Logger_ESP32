@@ -125,23 +125,34 @@ void setup() {
 }
  
 void loop() {
+  float temperature;
+  float humidity;
+  float pressure;
+
   SerialMon.print("Connecting to APN: ");
   SerialMon.print(apn);
+
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
     SerialMon.println(" fail");
     ESP.restart();
   }
   else {
     SerialMon.println(" OK");
-    int x = ThingSpeak.writeField(myChannelNumber, 1, myAHT20.readTemperature(), myWriteAPIKey);
+    temperature = myAHT20.readTemperature();
+    ThingSpeak.setField(1, temperature);
+    humidity = myAHT20.readHumidity();
+    ThingSpeak.setField(2, humidity);
+    pressure = bmp.readPressure();
+    ThingSpeak.setField(3, pressure);
+  }
+  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+    /*int x = ThingSpeak.writeField(myChannelNumber, 1, myAHT20.readTemperature(), myWriteAPIKey);
     Serial.printf("Temperature: %.02f *C\n", myAHT20.readTemperature());
     int y = ThingSpeak.writeField(myChannelNumber, 2, myAHT20.readHumidity(), myWriteAPIKey);
     Serial.printf("Humidity: %.02f %RH\n", myAHT20.readHumidity());
     int z = ThingSpeak.writeField(myChannelNumber, 3, bmp.readPressure(), myWriteAPIKey);
-    Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());
-    SerialMon.println("Данные отправлены");
-  }
-
+    Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());*/
+  SerialMon.println("Данные отправлены");
   
   // Переходим в спящий режим
   esp_deep_sleep_start();
