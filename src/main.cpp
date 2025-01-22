@@ -57,7 +57,7 @@ AHT10 myAHT20(AHT10_ADDRESS_0X38, AHT20_SENSOR);
 TinyGsmClient client(modem);
  
 #define uS_TO_S_FACTOR 1000000UL   /* преобразуем микросекунды в секунды */
-#define TIME_TO_SLEEP  15        /* время спящего режима 1 час = 3600 секунд */
+#define TIME_TO_SLEEP  15       /* время спящего режима 1 час = 3600 секунд */
  
 /*#define IP5306_ADDR          0x75
 #define IP5306_REG_SYS_CTL0  0x00
@@ -127,8 +127,13 @@ void setup() {
 void loop() {
   float temperature;
   float humidity;
-  float pressure;
+  float pressure=bmp.readPressure();
+      
+   /* Serial.printf("Temperature: %.02f *C\n", myAHT20.readTemperature());
 
+    Serial.printf("Humidity: %.02f %RH\n", myAHT20.readHumidity());
+
+    Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());*/
   SerialMon.print("Connecting to APN: ");
   SerialMon.print(apn);
 
@@ -142,7 +147,6 @@ void loop() {
     ThingSpeak.setField(1, temperature);
     humidity = myAHT20.readHumidity();
     ThingSpeak.setField(2, humidity);
-    pressure = bmp.readPressure();
     ThingSpeak.setField(3, pressure);
   }
   int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
