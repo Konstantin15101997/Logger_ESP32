@@ -60,6 +60,10 @@ Adafruit_INA219 ina219;
 Adafruit_BMP280 bmp;
 AHT10 myAHT20(AHT10_ADDRESS_0X38, AHT20_SENSOR);
 
+#define MY_PERIOD 120000  // период в мс
+uint32_t tmr1;         // переменная таймера
+int count;
+
 float temperature;
 float humidity;
 float pressure;
@@ -78,11 +82,13 @@ climate Data_climate;
 bool status_AHT20;
 bool status_BMP280;
 bool status_INA219;
+
+
 // клиент TinyGSM для подключения к интернету
 TinyGsmClient client(modem);
  
 #define uS_TO_S_FACTOR 1000000UL   /* преобразуем микросекунды в секунды */
-#define TIME_TO_SLEEP  60       /* время спящего режима 1 час = 3600 секунд */
+#define TIME_TO_SLEEP  600       /* время спящего режима 1 час = 3600 секунд */
  
 /*#define IP5306_ADDR          0x75
 #define IP5306_REG_SYS_CTL0  0x00
@@ -170,59 +176,60 @@ void setup() {
 
   // Выставляем пробуждение по таймеру  
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  tmr1=millis();
 }
  
 void loop() {
   
-  if (status_INA219==1){
-    Voltage = 0;
-  } else{
-    Voltage = ina219.getBusVoltage_V();
-  }
-
-  if (status_BMP280==1){
-    pressure = 0;
-  } else{
-    pressure=bmp.readPressure();
-  }
-  
-  //Current = ina219.getCurrent_mA();   
-   /* Serial.printf("Temperature: %.02f *C\n", myAHT20.readTemperature());
-
-    Serial.printf("Humidity: %.02f %RH\n", myAHT20.readHumidity());
-
-    Serial.printf("Pressure: %.02f hPa\n", bmp.readPressure());*/
-  SerialMon.print("Connecting to APN: ");
-  SerialMon.print(apn);
-
-  if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
-    SerialMon.println(" fail");
-    ESP.restart();
-  }
-  else {
-    SerialMon.println(" OK");
-
-    if (status_AHT20 == 1){
-      temperature = 0;
-      humidity = 0;
+  while(millis()-tmr1<=MY_PERIOD){
+    if (status_INA219==1){
+      Voltage = 0;
     } else{
-      temperature = myAHT20.readTemperature();
-      humidity = myAHT20.readHumidity();
+      Voltage = ina219.getBusVoltage_V();
     }
 
-    ThingSpeak.setField(1, temperature);
-    ThingSpeak.setField(2, humidity);
-    ThingSpeak.setField(3, pressure);
-    ThingSpeak.setField(4, Voltage);
+    if (status_BMP280==1){
+      pressure = 0;
+    } else{
+      pressure=bmp.readPressure();
+    }
+    
+    if (millis()-tmr1>=(MY_PERIOD-20000)){
+      count+=1;
+      if (count==1){
+        SerialMon.print("Connecting to APN: ");
+        SerialMon.print(apn);
+      
+        if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
+          SerialMon.println(" fail");
+          ESP.restart();
+        }
+        else {
+          SerialMon.println(" OK");
 
-    ThingSpeak.setField(5, Data_climate.temperature_esp8266);
-    ThingSpeak.setField(6, Data_climate.humidity_esp8266);
-    ThingSpeak.setField(7, Data_climate.pressure_esp8266);
+          if (status_AHT20 == 1){
+            temperature = 0;
+            humidity = 0;
+          } else{
+            temperature = myAHT20.readTemperature();
+            humidity = myAHT20.readHumidity();
+          }
 
+          ThingSpeak.setField(1, temperature);
+          ThingSpeak.setField(2, humidity);
+          ThingSpeak.setField(3, pressure);
+          ThingSpeak.setField(4, Voltage);
+
+          ThingSpeak.setField(5, Data_climate.temperature_esp8266);
+          ThingSpeak.setField(6, Data_climate.humidity_esp8266);
+          ThingSpeak.setField(7, Data_climate.pressure_esp8266);
+
+        }
+        int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+      }
+    }
   }
-  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
 
-  delay(3000);
   // Переходим в спящий режим
   esp_deep_sleep_start();
 }
