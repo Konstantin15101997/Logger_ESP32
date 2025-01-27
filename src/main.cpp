@@ -88,7 +88,7 @@ bool status_INA219;
 TinyGsmClient client(modem);
  
 #define uS_TO_S_FACTOR 1000000UL   /* преобразуем микросекунды в секунды */
-#define TIME_TO_SLEEP  600       /* время спящего режима 1 час = 3600 секунд */
+#define TIME_TO_SLEEP  480       /* время спящего режима 1 час = 3600 секунд */
  
 /*#define IP5306_ADDR          0x75
 #define IP5306_REG_SYS_CTL0  0x00
@@ -180,8 +180,9 @@ void setup() {
 }
  
 void loop() {
-  
+  Serial.println("Wait");
   while(millis()-tmr1<=MY_PERIOD){
+    Serial.println("Wait 120 секунд");
     if (status_INA219==1){
       Voltage = 0;
     } else{
@@ -195,6 +196,8 @@ void loop() {
     }
     
     if (millis()-tmr1>=(MY_PERIOD-20000)){
+      Serial.println("Прошло 100 секунд");
+      delay(5000);
       count+=1;
       if (count==1){
         SerialMon.print("Connecting to APN: ");
