@@ -113,6 +113,8 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 void setup() {
   // запускаем монитор порта
   SerialMon.begin(115200);
+  pinMode(13,OUTPUT);
+
   WiFi.mode(WIFI_AP_STA);
   
   // Запускаем протокол ESP-NOW
@@ -184,6 +186,7 @@ void loop() {
 
   while (millis()-tmr1 <= MY_PERIOD){
     if (millis()-tmr1 >= MY_PERIOD-60000){
+    digitalWrite(13,HIGH);
     SerialMon.print("Connecting to APN: ");
     SerialMon.print(apn);
         
@@ -208,6 +211,7 @@ void loop() {
     int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
     }
   }
+  digitalWrite(13,LOW);
   //delay(2000);
   esp_deep_sleep_start();
 
