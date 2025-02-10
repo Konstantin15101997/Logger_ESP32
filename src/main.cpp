@@ -8,8 +8,6 @@ const char gprsPass[] = "mts"; // пароль
 unsigned long myChannelNumber = 2;
 const char * myWriteAPIKey = "Q0337TE8T23TVSYI";
 
-uint8_t broadcastAddress[] = {0x10, 0x52, 0x1C, 0xE1, 0x1A, 0x7B}; //Поменять
-
 int send;
 
 // пины платы TTGO T-Call
@@ -39,8 +37,10 @@ int send;
 #include <Wire.h>
 #include <TinyGsmClient.h>
 #include <ThingSpeak.h>
+#include <Arduino.h>
 
- 
+uint8_t broadcastAddress[] = {0x10, 0x52, 0x1C, 0xE1, 0x1A, 0x7B}; //Поменять
+
 #ifdef DUMP_AT_COMMANDS
   #include <StreamDebugger.h>
   StreamDebugger debugger(SerialAT, SerialMon);
