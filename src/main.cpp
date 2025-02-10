@@ -8,6 +8,8 @@ const char gprsPass[] = "mts"; // пароль
 unsigned long myChannelNumber = 2;
 const char * myWriteAPIKey = "Q0337TE8T23TVSYI";
 
+uint8_t broadcastAddress[] = {0x10, 0x52, 0x1C, 0xE1, 0x1A, 0x7B}; //Поменять
+
 int send;
 
 // пины платы TTGO T-Call
@@ -75,6 +77,12 @@ typedef struct climate {
  
 climate Data_climate;
 
+typedef struct synhron {
+    int y;
+} synhron;
+ 
+synhron connect;
+
 bool status_AHT20;
 bool status_BMP280;
 bool status_INA219;
@@ -110,6 +118,10 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   Serial.println(Data_climate.pressure_esp8266);
 }
 
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.println("Отправленно");
+}
+
 void setup() {
   // запускаем монитор порта
   SerialMon.begin(115200);
@@ -120,6 +132,19 @@ void setup() {
   // Запускаем протокол ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+    //Регистрируем отправку сообщения
+  esp_now_register_send_cb(OnDataSent);
+  
+  // Указываем получателя
+  esp_now_peer_info_t peerInfo;
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
     return;
   }
 
@@ -185,32 +210,38 @@ void loop() {
   pressure=bmp.readPressure();
 
   while (millis()-tmr1 <= MY_PERIOD){
+    esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
+    
     if (millis()-tmr1 >= MY_PERIOD-60000){
-    digitalWrite(13,HIGH);
-    SerialMon.print("Connecting to APN: ");
-    SerialMon.print(apn);
-        
-    if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
-      SerialMon.println(" fail");
-      ESP.restart();
-    }
-    else {
-      SerialMon.println(" OK");
-      temperature = myAHT20.readTemperature();
-      ThingSpeak.setField(1, temperature);
-      humidity = myAHT20.readHumidity();
-      ThingSpeak.setField(2, humidity);
-      ThingSpeak.setField(3, pressure);
-      ThingSpeak.setField(4, Voltage);
+      digitalWrite(13,HIGH);
+      SerialMon.print("Connecting to APN: ");
+      SerialMon.print(apn);
+          
+      if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
+        SerialMon.println(" fail");
+        ESP.restart();
+      }
+      else {
+        SerialMon.println(" OK");
+        temperature = myAHT20.readTemperature();
+        ThingSpeak.setField(1, temperature);
+        humidity = myAHT20.readHumidity();
+        ThingSpeak.setField(2, humidity);
+        ThingSpeak.setField(3, pressure);
+        ThingSpeak.setField(4, Voltage);
 
-      ThingSpeak.setField(5, Data_climate.temperature_esp8266);
-      ThingSpeak.setField(6, Data_climate.humidity_esp8266);
-      ThingSpeak.setField(7, Data_climate.pressure_esp8266);
-    }
+        ThingSpeak.setField(5, Data_climate.temperature_esp8266);
+        ThingSpeak.setField(6, Data_climate.humidity_esp8266);
+        ThingSpeak.setField(7, Data_climate.pressure_esp8266);
+      }
 
-    int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+      int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+    }
+    if (millis()-tmr1 >= MY_PERIOD-10000){
+      connect.y=1;
     }
   }
+  esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
   digitalWrite(13,LOW);
   //delay(2000);
   esp_deep_sleep_start();
