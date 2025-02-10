@@ -54,7 +54,9 @@ uint8_t broadcastAddress[] = {0x10, 0x52, 0x1C, 0xE1, 0x1A, 0x7B}; //Помен�
 #include <Adafruit_INA219.h>
 #include <esp_now.h>
 #include <WiFi.h>
+#include <HardwareSerial.h>
 
+HardwareSerial SerialPort(2);
 // I2C для SIM800 
 //TwoWire I2CPower = TwoWire(0);
 
@@ -82,6 +84,15 @@ typedef struct synhron {
 } synhron;
  
 synhron connect;
+
+//UART
+struct Str {
+  float temperatura;
+  float humidity;
+  float pressure;
+};
+
+Str buf;
 
 bool status_AHT20;
 bool status_BMP280;
@@ -167,6 +178,8 @@ void setup() {
  
   // Устанавливаем скорость передачи данных модуля GSM и контакты UART.
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
+  SerialPort.begin(115200, SERIAL_8N1, 16, 17); 
+
   delay(2000);
 
   if (ina219.begin() != true) {       
@@ -212,6 +225,14 @@ void loop() {
   while (millis()-tmr1 <= MY_PERIOD){
     esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
     
+    if (SerialPort.available()){
+      
+      SerialPort.readBytes((byte*)&buf, sizeof(buf));
+      Serial.println(buf.temperatura);
+      Serial.println(buf.humidity);
+      Serial.println(buf.pressure);
+    }
+
     if (millis()-tmr1 >= MY_PERIOD-60000){
       digitalWrite(13,HIGH);
       SerialMon.print("Connecting to APN: ");
@@ -232,7 +253,9 @@ void loop() {
 
         ThingSpeak.setField(5, Data_climate.temperature_esp8266);
         ThingSpeak.setField(6, Data_climate.humidity_esp8266);
-        ThingSpeak.setField(7, Data_climate.pressure_esp8266);
+
+        ThingSpeak.setField(7, buf.temperatura);
+        ThingSpeak.setField(8, buf.humidity);
       }
 
       int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
