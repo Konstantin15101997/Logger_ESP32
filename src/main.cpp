@@ -39,7 +39,7 @@ int send;
 #include <ThingSpeak.h>
 #include <Arduino.h>
 
-uint8_t broadcastAddress[] = {0x10, 0x52, 0x1C, 0xE1, 0x1A, 0x7B}; //Поменять
+uint8_t broadcastAddress[] = {0x2C, 0xF4, 0x32, 0x13, 0xA7, 0x87}; //Поменять на 2C:F4:32:13:A7:87
 
 #ifdef DUMP_AT_COMMANDS
   #include <StreamDebugger.h>
