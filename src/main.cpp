@@ -52,10 +52,10 @@ uint8_t broadcastAddress[] = {0x2C, 0xF4, 0x32, 0x13, 0xA7, 0x87}; //Помен�
 #include <Adafruit_BMP280.h>
 #include <AHT10.h>
 #include <Adafruit_INA219.h>
-#include <esp_now.h>
+//#include <esp_now.h>
 #include <WiFi.h>
-#include <HardwareSerial.h>
 
+#include <HardwareSerial.h>
 HardwareSerial SerialPort(2);
 // I2C для SIM800 
 //TwoWire I2CPower = TwoWire(0);
@@ -63,7 +63,6 @@ HardwareSerial SerialPort(2);
 Adafruit_INA219 ina219; 
 Adafruit_BMP280 bmp;
 AHT10 myAHT20(AHT10_ADDRESS_0X38, AHT20_SENSOR);
-
 
 float temperature;
 float humidity;
@@ -98,7 +97,7 @@ bool status_AHT20;
 bool status_BMP280;
 bool status_INA219;
 
-#define MY_PERIOD 180000  // период в мс
+#define MY_PERIOD 80000  // период в мс
 uint32_t tmr1;         // переменная таймера
 
 
@@ -122,7 +121,7 @@ bool setPowerBoostKeepOn(int en){
   return I2CPower.endTransmission() == 0;
 }*/
  
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+/*void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&Data_climate, incomingData, sizeof(Data_climate));
   Serial.println(Data_climate.temperature_esp8266);
   Serial.println(Data_climate.humidity_esp8266);
@@ -130,17 +129,17 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 }
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.println("Отправленно");
-}
+  //Serial.println("Отправленно");
+}*/
 
 void setup() {
   // запускаем монитор порта
   SerialMon.begin(115200);
-  pinMode(13,OUTPUT);
+  //pinMode(13,OUTPUT);
 
   WiFi.mode(WIFI_AP_STA);
   
-  // Запускаем протокол ESP-NOW
+  /*// Запускаем протокол ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
@@ -159,7 +158,8 @@ void setup() {
     return;
   }
 
-  esp_now_register_recv_cb(OnDataRecv);
+  esp_now_register_recv_cb(OnDataRecv);*/
+
   WiFi.disconnect();
   // Начинаем подключение I2C
   /*I2CPower.begin(I2C_SDA, I2C_SCL, 400000);
@@ -178,7 +178,7 @@ void setup() {
  
   // Устанавливаем скорость передачи данных модуля GSM и контакты UART.
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
-  //SerialPort.begin(115200, SERIAL_8N1, 16, 17); 
+  SerialPort.begin(115200, SERIAL_8N1, 25, 12); 
 
   delay(2000);
 
@@ -223,18 +223,18 @@ void loop() {
   pressure=bmp.readPressure();
 
   while (millis()-tmr1 <= MY_PERIOD){
-    esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
+    //esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
     
     if (SerialPort.available()){
       
       SerialPort.readBytes((byte*)&buf, sizeof(buf));
-      Serial.println(buf.temperatura);
-      Serial.println(buf.humidity);
-      Serial.println(buf.pressure);
+      SerialMon.println(buf.temperatura);
+      SerialMon.println(buf.humidity);
+      SerialMon.println(buf.pressure);
     }
 
     if (millis()-tmr1 >= MY_PERIOD-60000){
-      digitalWrite(13,HIGH);
+      //digitalWrite(13,HIGH);
       SerialMon.print("Connecting to APN: ");
       SerialMon.print(apn);
           
@@ -264,8 +264,8 @@ void loop() {
       connect.y=1;
     }
   }
-  esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
-  digitalWrite(13,LOW);
+  //esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
+  //digitalWrite(13,LOW);
   //delay(2000);
   esp_deep_sleep_start();
 
