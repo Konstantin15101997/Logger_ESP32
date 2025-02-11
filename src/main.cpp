@@ -178,7 +178,7 @@ void setup() {
  
   // Устанавливаем скорость передачи данных модуля GSM и контакты UART.
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
-  SerialPort.begin(115200, SERIAL_8N1, 16, 17); 
+  //SerialPort.begin(115200, SERIAL_8N1, 16, 17); 
 
   delay(2000);
 
