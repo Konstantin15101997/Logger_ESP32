@@ -52,7 +52,7 @@ uint8_t broadcastAddress[] = {0x2C, 0xF4, 0x32, 0x13, 0xA7, 0x87}; //Помен�
 #include <Adafruit_BMP280.h>
 #include <AHT10.h>
 #include <Adafruit_INA219.h>
-//#include <esp_now.h>
+#include <esp_now.h>
 #include <WiFi.h>
 
 #include <HardwareSerial.h>
@@ -97,7 +97,7 @@ bool status_AHT20;
 bool status_BMP280;
 bool status_INA219;
 
-#define MY_PERIOD 80000  // период в мс
+#define MY_PERIOD 180000  // период в мс
 uint32_t tmr1;         // переменная таймера
 
 
@@ -121,32 +121,32 @@ bool setPowerBoostKeepOn(int en){
   return I2CPower.endTransmission() == 0;
 }*/
  
-/*void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&Data_climate, incomingData, sizeof(Data_climate));
   Serial.println(Data_climate.temperature_esp8266);
   Serial.println(Data_climate.humidity_esp8266);
   Serial.println(Data_climate.pressure_esp8266);
 }
 
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+/*void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   //Serial.println("Отправленно");
 }*/
 
 void setup() {
   // запускаем монитор порта
   SerialMon.begin(115200);
-  //pinMode(13,OUTPUT);
+  pinMode(13,OUTPUT);
 
   WiFi.mode(WIFI_AP_STA);
   
-  /*// Запускаем протокол ESP-NOW
+  // Запускаем протокол ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
   }
 
     //Регистрируем отправку сообщения
-  esp_now_register_send_cb(OnDataSent);
+  /*esp_now_register_send_cb(OnDataSent);
   
   // Указываем получателя
   esp_now_peer_info_t peerInfo;
@@ -156,9 +156,9 @@ void setup() {
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     Serial.println("Failed to add peer");
     return;
-  }
+  }*/
 
-  esp_now_register_recv_cb(OnDataRecv);*/
+  esp_now_register_recv_cb(OnDataRecv);
 
   WiFi.disconnect();
   // Начинаем подключение I2C
@@ -234,7 +234,7 @@ void loop() {
     }
 
     if (millis()-tmr1 >= MY_PERIOD-60000){
-      //digitalWrite(13,HIGH);
+      digitalWrite(13,HIGH);
       SerialMon.print("Connecting to APN: ");
       SerialMon.print(apn);
           
@@ -244,6 +244,7 @@ void loop() {
       }
       else {
         SerialMon.println(" OK");
+        digitalWrite(13,LOW);
         temperature = myAHT20.readTemperature();
         ThingSpeak.setField(1, temperature);
         humidity = myAHT20.readHumidity();
@@ -259,13 +260,14 @@ void loop() {
       }
 
       int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+      digitalWrite(13,HIGH);
     }
-    if (millis()-tmr1 >= MY_PERIOD-10000){
+    /*if (millis()-tmr1 >= MY_PERIOD-10000){
       connect.y=1;
-    }
+    }*/
   }
   //esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
-  //digitalWrite(13,LOW);
+  digitalWrite(13,LOW);
   //delay(2000);
   esp_deep_sleep_start();
 
