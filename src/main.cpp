@@ -95,7 +95,7 @@ bool status_AHT20;
 bool status_BMP280;
 bool status_INA219;
 
-#define MY_PERIOD 180000  // период в мс
+#define MY_PERIOD 60000  // период в мс
 uint32_t tmr1;         // переменная таймера
 
 // клиент TinyGSM для подключения к интернету
@@ -230,7 +230,7 @@ void loop() {
       SerialMon.println(buf.pressure);
     }
 
-    if (millis()-tmr1 >= MY_PERIOD-60000){
+    if (millis()-tmr1 >= MY_PERIOD-15000){
       digitalWrite(13,HIGH);
       SerialMon.print("Connecting to APN: ");
       SerialMon.print(apn);
