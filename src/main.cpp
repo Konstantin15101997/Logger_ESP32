@@ -8,8 +8,6 @@ const char gprsPass[] = "mts"; // пароль
 unsigned long myChannelNumber = 2;
 const char * myWriteAPIKey = "Q0337TE8T23TVSYI";
 
-int send;
-
 // пины платы TTGO T-Call
 #define MODEM_RST            5
 #define MODEM_PWKEY          4
@@ -52,7 +50,7 @@ uint8_t broadcastAddress[] = {0x2C, 0xF4, 0x32, 0x13, 0xA7, 0x87}; //Помен�
 #include <Adafruit_BMP280.h>
 #include <AHT10.h>
 #include <Adafruit_INA219.h>
-#include <esp_now.h>
+//#include <esp_now.h>
 #include <WiFi.h>
 
 #include <HardwareSerial.h>
@@ -100,12 +98,11 @@ bool status_INA219;
 #define MY_PERIOD 180000  // период в мс
 uint32_t tmr1;         // переменная таймера
 
-
 // клиент TinyGSM для подключения к интернету
 TinyGsmClient client(modem);
  
 #define uS_TO_S_FACTOR 1000000UL   /* преобразуем микросекунды в секунды */
-#define TIME_TO_SLEEP  3420      /* время спящего режима 1 час = 3600 секунд */
+#define TIME_TO_SLEEP  3420      /* время спящего режима 1 час = 3600 секунд == 57 минут*/
  
 /*#define IP5306_ADDR          0x75
 #define IP5306_REG_SYS_CTL0  0x00
@@ -121,12 +118,12 @@ bool setPowerBoostKeepOn(int en){
   return I2CPower.endTransmission() == 0;
 }*/
  
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+/*void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&Data_climate, incomingData, sizeof(Data_climate));
   Serial.println(Data_climate.temperature_esp8266);
   Serial.println(Data_climate.humidity_esp8266);
   Serial.println(Data_climate.pressure_esp8266);
-}
+}*/
 
 /*void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   //Serial.println("Отправленно");
@@ -139,14 +136,14 @@ void setup() {
 
   WiFi.mode(WIFI_AP_STA);
   
-  // Запускаем протокол ESP-NOW
+  /*// Запускаем протокол ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
   }
 
     //Регистрируем отправку сообщения
-  /*esp_now_register_send_cb(OnDataSent);
+  esp_now_register_send_cb(OnDataSent);
   
   // Указываем получателя
   esp_now_peer_info_t peerInfo;
@@ -156,9 +153,9 @@ void setup() {
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     Serial.println("Failed to add peer");
     return;
-  }*/
+  }
 
-  esp_now_register_recv_cb(OnDataRecv);
+  esp_now_register_recv_cb(OnDataRecv);*/
 
   WiFi.disconnect();
   // Начинаем подключение I2C
