@@ -16,9 +16,6 @@ const char * myWriteAPIKey = "Q0337TE8T23TVSYI";
 #define MODEM_RX             26
 #define I2C_SDA              21
 #define I2C_SCL              22
-// пины BME280
-#define I2C_SDA_2            18
-#define I2C_SCL_2            19
  
 // указываем порт для монитора порта
 #define SerialMon Serial
@@ -37,8 +34,6 @@ const char * myWriteAPIKey = "Q0337TE8T23TVSYI";
 #include <ThingSpeak.h>
 #include <Arduino.h>
 
-uint8_t broadcastAddress[] = {0x2C, 0xF4, 0x32, 0x13, 0xA7, 0x87}; //Поменять на 2C:F4:32:13:A7:87
-
 #ifdef DUMP_AT_COMMANDS
   #include <StreamDebugger.h>
   StreamDebugger debugger(SerialAT, SerialMon);
@@ -50,37 +45,16 @@ uint8_t broadcastAddress[] = {0x2C, 0xF4, 0x32, 0x13, 0xA7, 0x87}; //Помен�
 #include <Adafruit_BMP280.h>
 #include <AHT10.h>
 #include <Adafruit_INA219.h>
-//#include <esp_now.h>
 #include <WiFi.h>
-
-#include <HardwareSerial.h>
-HardwareSerial SerialPort(2);
-// I2C для SIM800 
-//TwoWire I2CPower = TwoWire(0);
 
 Adafruit_INA219 ina219; 
 Adafruit_BMP280 bmp;
 AHT10 myAHT20(AHT10_ADDRESS_0X38, AHT20_SENSOR);
 
-float temperature;
-float humidity;
-float pressure;
+float temperature_SERVER;
+float humidity_SERVER;
+float pressure_SERVER;
 float Voltage;
-float Current; 
-
-typedef struct climate {
-  float temperature_esp8266;
-  float humidity_esp8266;
-  float pressure_esp8266;
-} climate;
- 
-climate Data_climate;
-
-typedef struct synhron {
-    int y;
-} synhron;
- 
-synhron connect;
 
 //UART
 struct Str {
@@ -102,32 +76,7 @@ uint32_t tmr1;         // переменная таймера
 TinyGsmClient client(modem);
  
 #define uS_TO_S_FACTOR 1000000UL   /* преобразуем микросекунды в секунды */
-#define TIME_TO_SLEEP  3420      /* время спящего режима 1 час = 3600 секунд == 57 минут*/
- 
-/*#define IP5306_ADDR          0x75
-#define IP5306_REG_SYS_CTL0  0x00
- 
-bool setPowerBoostKeepOn(int en){
-  I2CPower.beginTransmission(IP5306_ADDR);
-  I2CPower.write(IP5306_REG_SYS_CTL0);
-  if (en) {
-    I2CPower.write(0x37); // если 1 включаем плату, если 0 - выключаем
-  } else {
-    I2CPower.write(0x35); // 0x37 – значение по умолчанию
-  }
-  return I2CPower.endTransmission() == 0;
-}*/
- 
-/*void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
-  memcpy(&Data_climate, incomingData, sizeof(Data_climate));
-  Serial.println(Data_climate.temperature_esp8266);
-  Serial.println(Data_climate.humidity_esp8266);
-  Serial.println(Data_climate.pressure_esp8266);
-}*/
-
-/*void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  //Serial.println("Отправленно");
-}*/
+#define TIME_TO_SLEEP  1800      /* время спящего режима 1 час = 3600 секунд == 57 минут = 3420*/
 
 void setup() {
   // запускаем монитор порта
@@ -135,35 +84,9 @@ void setup() {
   pinMode(13,OUTPUT);
 
   WiFi.mode(WIFI_AP_STA);
-  
-  /*// Запускаем протокол ESP-NOW
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
-    return;
-  }
 
-    //Регистрируем отправку сообщения
-  esp_now_register_send_cb(OnDataSent);
-  
-  // Указываем получателя
-  esp_now_peer_info_t peerInfo;
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-  peerInfo.channel = 0;  
-  peerInfo.encrypt = false;
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer");
-    return;
-  }
-
-  esp_now_register_recv_cb(OnDataRecv);*/
 
   WiFi.disconnect();
-  // Начинаем подключение I2C
-  /*I2CPower.begin(I2C_SDA, I2C_SCL, 400000);
-
-  // Не выключаем плату при питании от батареи
-  bool isOk = setPowerBoostKeepOn(1);
-  SerialMon.println(String("IP5306 KeepOn ") + (isOk ? "OK" : "FAIL"));*/
  
   // Сброс, включение и контакты питания
   pinMode(MODEM_PWKEY, OUTPUT);
@@ -175,7 +98,8 @@ void setup() {
  
   // Устанавливаем скорость передачи данных модуля GSM и контакты UART.
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
-  SerialPort.begin(115200, SERIAL_8N1, 25, 12); 
+
+  Serial2.begin(115200, SERIAL_8N1, 25, 12); 
 
   delay(2000);
 
@@ -212,60 +136,38 @@ void setup() {
 
   // Выставляем пробуждение по таймеру  
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  tmr1=millis();
 }
  
 void loop() {
   Voltage = ina219.getBusVoltage_V();
-  pressure=bmp.readPressure();
-
-  while (millis()-tmr1 <= MY_PERIOD){
-    //esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
-    
-    if (SerialPort.available()){
-      
-      SerialPort.readBytes((byte*)&buf, sizeof(buf));
-      SerialMon.println(buf.temperatura);
-      SerialMon.println(buf.humidity);
-      SerialMon.println(buf.pressure);
-    }
-
-    if (millis()-tmr1 >= MY_PERIOD-15000){
-      digitalWrite(13,HIGH);
-      SerialMon.print("Connecting to APN: ");
-      SerialMon.print(apn);
-          
-      if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
-        SerialMon.println(" fail");
-        ESP.restart();
-      }
-      else {
-        SerialMon.println(" OK");
-        digitalWrite(13,LOW);
-        temperature = myAHT20.readTemperature();
-        ThingSpeak.setField(1, temperature);
-        humidity = myAHT20.readHumidity();
-        ThingSpeak.setField(2, humidity);
-        ThingSpeak.setField(3, pressure);
-        ThingSpeak.setField(4, Voltage);
-
-        ThingSpeak.setField(5, Data_climate.temperature_esp8266);
-        ThingSpeak.setField(6, Data_climate.humidity_esp8266);
-
-        ThingSpeak.setField(7, buf.temperatura);
-        ThingSpeak.setField(8, buf.humidity);
-      }
-
-      int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
-      digitalWrite(13,HIGH);
-    }
-    /*if (millis()-tmr1 >= MY_PERIOD-10000){
-      connect.y=1;
-    }*/
+  pressure_SERVER=bmp.readPressure();
+  if (Serial2.available()){
+    Serial2.readBytes((byte*)&buf, sizeof(buf));
+    SerialMon.println(buf.temperatura);
+    SerialMon.println(buf.humidity);
   }
-  //esp_now_send(broadcastAddress, (uint8_t *) &connect, sizeof(connect));
-  digitalWrite(13,LOW);
-  //delay(2000);
-  esp_deep_sleep_start();
+  SerialMon.print("Connecting to APN: ");
+  SerialMon.print(apn);  
+  if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
+    SerialMon.println(" fail");
+    esp_deep_sleep_start();
+  }
+  else {
+    SerialMon.println(" OK");
+    digitalWrite(13,HIGH);
+    temperature_SERVER = myAHT20.readTemperature();
+    ThingSpeak.setField(1, temperature_SERVER);
+    humidity_SERVER = myAHT20.readHumidity();
+    ThingSpeak.setField(2, humidity_SERVER);
+    ThingSpeak.setField(3, int(millis()));
+    ThingSpeak.setField(4, Voltage);
+  
+    ThingSpeak.setField(7, buf.temperatura);
+    ThingSpeak.setField(8, buf.humidity);
+    
 
+  }
+  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+  digitalWrite(13,LOW);
+  esp_deep_sleep_start();
 }
