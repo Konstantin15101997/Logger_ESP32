@@ -53,14 +53,14 @@ AHT10 myAHT20(AHT10_ADDRESS_0X38, AHT20_SENSOR);
 
 float temperature_SERVER;
 float humidity_SERVER;
-float pressure_SERVER;
 float Voltage;
 
 //UART
 struct Str {
-  float temperatura;
-  float humidity;
-  float pressure;
+  float temperatura_AHT20;
+  float humidity_AHT20;
+  float temperatura_BME280;
+  float humidity_BME280;
 };
 
 Str buf;
@@ -82,10 +82,9 @@ void setup() {
   // запускаем монитор порта
   SerialMon.begin(115200);
   pinMode(13,OUTPUT);
-
+  pinMode(33,OUTPUT);
+  digitalWrite(33, HIGH);
   WiFi.mode(WIFI_AP_STA);
-
-
   WiFi.disconnect();
  
   // Сброс, включение и контакты питания
@@ -113,19 +112,6 @@ void setup() {
     status_AHT20=1;
   }
   
-  if (bmp.begin() != true) {
-    Serial.println("BMP280 ERROR");
-    status_BMP280=1;
-  }
-
-  ina219.setCalibration_16V_400mA ();
-  
-  /* Default settings from datasheet. */
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
   // Перезапускаем модуль SIM800
   // Для пропуска вместо restart() напишите init(0
   SerialMon.println("Initializing modem...");
@@ -140,11 +126,9 @@ void setup() {
  
 void loop() {
   Voltage = ina219.getBusVoltage_V();
-  pressure_SERVER=bmp.readPressure();
+  
   if (Serial2.available()){
     Serial2.readBytes((byte*)&buf, sizeof(buf));
-    SerialMon.println(buf.temperatura);
-    SerialMon.println(buf.humidity);
   }
   SerialMon.print("Connecting to APN: ");
   SerialMon.print(apn);  
@@ -162,12 +146,14 @@ void loop() {
     ThingSpeak.setField(3, int(millis()));
     ThingSpeak.setField(4, Voltage);
   
-    ThingSpeak.setField(7, buf.temperatura);
-    ThingSpeak.setField(8, buf.humidity);
+    ThingSpeak.setField(5, buf.temperatura_AHT20);
+    ThingSpeak.setField(6, buf.humidity_AHT20);
+    ThingSpeak.setField(7, buf.temperatura_BME280);
+    ThingSpeak.setField(8, buf.humidity_BME280);
     
-
   }
   int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+  digitalWrite(33, LOW);
   digitalWrite(13,LOW);
   esp_deep_sleep_start();
 }
